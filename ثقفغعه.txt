@@ -1,0 +1,176 @@
+<!-- index.html - نظام حضور وانصراف متصل بـ Supabase -->
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>نظام حضور وانصراف العدالة</title>
+<style>
+body {
+font-family: Arial, sans-serif;
+direction: rtl;
+text-align: center;
+background: #f9f9f9;
+margin: 0;
+padding: 20px;
+}
+#logo {
+font-size: 28px;
+font-weight: bold;
+margin-bottom: 20px;
+}
+input {
+display: block;
+margin: 10px auto;
+padding: 10px;
+width: 80%;
+max-width: 300px;
+}
+button {
+margin: 10px;
+padding: 10px 20px;
+font-size: 16px;
+}
+table {
+width: 100%;
+border-collapse: collapse;
+margin-top: 20px;
+}
+th, td {
+border: 1px solid #ccc;
+padding: 8px;
+}
+th {
+background: #eee;
+}
+</style>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+const supabaseUrl = 'https://your-project.supabase.co'; // ضع رابط مشروعك
+const supabaseKey = 'your-anon-key'; // ضع المفتاح العام لمشروعك
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+const emailInput = document.getElementById('email');
+const passwordInput = document.getElementById('password');
+const loginBtn = document.getElementById('loginBtn');
+const signupBtn = document.getElementById('signupBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const attendBtn = document.getElementById('attendBtn');
+const leaveBtn = document.getElementById('leaveBtn');
+const main = document.getElementById('main');
+const auth = document.getElementById('auth');
+const usernameSpan = document.getElementById('username');
+const adminPanel = document.getElementById('adminPanel');
+const recordsBody = document.getElementById('recordsBody');
+const filterMonth = document.getElementById('filterMonth');
+
+let currentUser;
+
+loginBtn.onclick = async () => {
+const { data, error } = await supabase.auth.signInWithPassword({
+email: emailInput.value,
+password: passwordInput.value
+});
+if (data.user) {
+currentUser = data.user;
+showApp();
+} else {
+alert('خطأ في تسجيل الدخول');
+}
+};
+
+signupBtn.onclick = async () => {
+const { data, error } = await supabase.auth.signUp({
+email: emailInput.value,
+password: passwordInput.value
+});
+if (data.user) alert('تم إنشاء الحساب. قم بتسجيل الدخول الآن');
+};
+
+logoutBtn.onclick = async () => {
+await supabase.auth.signOut();
+location.reload();
+};
+
+async function showApp() {
+auth.style.display = 'none';
+main.style.display = 'block';
+usernameSpan.textContent = currentUser.email;
+if (currentUser.email === 'mahdeaaaacc@gmail.com') {
+adminPanel.style.display = 'block';
+loadAdminData();
+}
+}
+
+async function markAttendance(type) {
+const { error } = await supabase.from('attendance').insert({
+email: currentUser.email,
+type,
+timestamp: new Date().toISOString()
+});
+if (!error) alert(`${type === 'in' ? 'تم تسجيل الحضور' : 'تم تسجيل الانصراف'}`);
+}
+
+attendBtn.onclick = () => markAttendance('in');
+leaveBtn.onclick = () => markAttendance('out');
+
+async function loadAdminData() {
+const { data, error } = await supabase.from('attendance').select('*').order('timestamp', { ascending: false });
+recordsBody.innerHTML = '';
+data.forEach(row => {
+const tr = document.createElement('tr');
+tr.innerHTML = `
+<td>${row.email}</td>
+<td>${new Date(row.timestamp).toLocaleDateString()}</td>
+<td>${row.type === 'in' ? 'حضور' : 'انصراف'}</td>
+<td>${new Date(row.timestamp).toLocaleTimeString()}</td>
+`;
+recordsBody.appendChild(tr);
+});
+}
+
+filterMonth.onchange = loadAdminData;
+
+supabase.auth.getUser().then(({ data }) => {
+if (data.user) {
+currentUser = data.user;
+showApp();
+}
+});
+</script>
+</head>
+<body>
+<div id="logo">نظام حضور وانصراف العدالة</div>
+<div id="auth">
+<h2>تسجيل الدخول</h2>
+<input type="email" id="email" placeholder="البريد الإلكتروني" />
+<input type="password" id="password" placeholder="كلمة المرور" />
+<button id="loginBtn">دخول</button>
+<button id="signupBtn">إنشاء حساب جديد</button>
+</div>
+
+<div id="main" style="display:none">
+<h2>مرحباً <span id="username"></span></h2>
+<button id="attendBtn">حضور</button>
+<button id="leaveBtn">انصراف</button>
+<button id="logoutBtn">تسجيل خروج</button>
+</div>
+
+<div id="adminPanel" style="display:none">
+<h2>لوحة تحكم الأدمن</h2>
+<input type="month" id="filterMonth" />
+<table>
+<thead>
+<tr>
+<th>الاسم</th>
+<th>التاريخ</th>
+<th>النوع</th>
+<th>الوقت</th>
+</tr>
+</thead>
+<tbody id="recordsBody"></tbody>
+</table>
+</div>
+</body>
+</html>
